@@ -1,3 +1,5 @@
+#!/bin/python
+
 from app import app
 from flask import request
 import sqlite3
