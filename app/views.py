@@ -12,15 +12,23 @@ def index():
         data = dict(x.split("=") for x in data.split("&"))
         player1 = data["user_name"]
         player2 = ""
+        move = 0
+
+        # Interpret the syntax
 
         if(data["text"] == ""):
+            # Intro text
             response = {"response_type": "ephemeral"}
             response["text"] = "Welcome to TicTacToe!\nIn order to start a game, please challenge someone in the channel.\nEx. /tictactoe @john"
             return jsonify(response)
 
         elif(len(data["text"].split(" ")) == 1):
+            # Select the challenger
             if(data["text"][0:3] == "%40"):
                 player2 = data["text"][3:len(data["text"])]
+            elif(len(data["text"]) == 1):
+                if(data["text"].isdigit()):
+                    move = int(data["text"])
 
         # Establish connection to database
         connection = sqlite3.connect("db/database.db")
@@ -34,25 +42,53 @@ def index():
 
         except:
             cursor.execute("create table game (channel varchar(256)," +
-                           "inSession integer(4), player1 varchar(256), player2"
-                           + " varchar(256));")
+                           " inSession integer(4), player1 varchar(256), player2"
+                           + " varchar(256), topLeft integer(4), " +
+                           "topMiddle integer(4), topRight integer(4), " +
+                           "middleLeft integer(4)," + " center integer(4), " +
+                           " middleRight integer(4), bottomLeft integer(4)," +
+                           " bottomMiddle integer(4), bottomRight integer(4));")
 
         # Get current game
         currentGame = cursor.execute("select * from game where channel=?", t)
 
-        if(len(currentGame.fetchall()) == 0):
+        if(len(currentGame.fetchall()) == 0 and player2 != ""):
             # No game has been made
-            currentGame = cursor.execute("INSERT INTO game VALUES(?, ?, ?, ?)",
+            print("making a game")
+            currentGame = cursor.execute("INSERT INTO game VALUES(?, ?, ?, ?" +
+                                         ", ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                                          [data["channel_name"],
-                                          1, player1, player2])
+                                          1, player1, player2, 0, 0, 0, 0,
+                                          0, 0, 0, 0, 0])
             connection.commit()
-            responseMessage = {"response_type": "in_channel", "text": "You've challenged " + player2 + "!"}
+            # Create New Game
+            responseMessage = {"response_type": "in_channel", "text": "You've challenged " + player2 + "!" +
+                               "The board is currently:\n|1|2|3|\n" +
+                               "|4|5|6|\n" +
+                               "|7|8|9|\n"}
             return jsonify(responseMessage)
         else:
-            # Check to see if the players are correct
-            if(player2 != cursor.execute("select player2 from game where channel=?", t).fetchone()[0]):
-                returnMessage = {"response_type": "ephemeral", "text": "Only one game per channel (:"}
+            # Check to see if the player is making correct move
+            if(isAPlayer(data["text"])):
+                returnMessage = {"response_type": "in_channel", "text":"Only one game at a time!" }
                 return jsonify(returnMessage)
+
+            else:
+
+                if(player1 == cursor.execute("select player1 from game where" +
+                                             " channel=?", t).fetchone()[0] or
+                    player1 == cursor.execute("select player2 " +
+                                              "from game where channel=?",
+                                              t).fetchone()[0]):
+                    updateGameTable(cursor, t, move, player1)
+
+                    
+                else:
+                    returnMessage = {"response_type": "in_channel", "text": "Sorry, you're not in this game:("}
+                    return jsonify(returnMessage)
+
+
+                    connection.commit()
 
         currentGame = cursor.execute("select * from game where channel=?", t)
 
@@ -66,3 +102,61 @@ def index():
         return "Welcome to the webpage"
     else:
         return "This shouldn't happen"
+
+
+def isAPlayer(s):
+
+    if(len(s) < 3):
+        return False
+
+    if(s[0:3] == "%40"):
+        return True
+    else:
+        return False
+
+def updateGameTable(cursor, data, move, player):
+
+    # Player 1 is X
+    # Player 2 is O
+
+    # Update table with this value
+    tableValue = 0
+    # Figure out which player is making a move
+    if(player == cursor.execute("select player1 from game where channel=?",
+                                data).fetchone()[0]):
+        # Player 1
+        tableValue = 1
+    else:
+        # Player 2
+        tableValue = 2
+
+    if(move == 1):
+        cursor.execute("UPDATE game SET topLeft=? WHERE channel=? AND topLeft=0",
+                       (tableValue, data[0]))
+    elif(move == 2):
+        cursor.execute("UPDATE game SET topMiddle=? WHERE channel=? AND topMiddle=0",
+                       (tableValue, data[0]))
+    elif (move == 3):
+        cursor.execute("UPDATE game SET topRight=? WHERE channel=? AND topRight=0",
+                       (tableValue, data[0]))
+    elif(move == 4):
+        cursor.execute("UPDATE game SET middleLeft=? WHERE channel=? AND middleLeft=0",
+                       (tableValue, data[0]))
+    elif(move == 5):
+        cursor.execute("UPDATE game SET center=? WHERE channel=? AND center=0",
+                       (tableValue, data[0]))
+    elif(move == 6):
+        cursor.execute("UPDATE game SET middleRight=? WHERE channel=? AND middleRight=0",
+                       (tableValue, data[0]))
+    elif(move == 7):
+        cursor.execute("UPDATE game SET bottomLeft=? WHERE channel=?",
+                       (tableValue, data[0]))
+    elif(move == 8):
+        cursor.execute("UPDATE game SET bottomMiddle=? WHERE channel=?",
+                       (tableValue, data[0]))
+    elif(move == 9):
+        cursor.execute("UPDATE game SET bottomRight=? WHERE channel=?",
+                       (tableValue, data[0]))
+
+
+# def displayBoard():
