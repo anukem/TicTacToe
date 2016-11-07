@@ -30,8 +30,15 @@ def index():
             elif(len(data["text"]) == 1):
                 if(data["text"].isdigit()):
                     move = int(data["text"])
+                else:
+                    responseMessage = {"response_type": "in_channel", "text": "Sorry I don't recognize that action. To start a game, please type /ttt @user"}
+                    return jsonify(responseMessage)
             elif(data["text"] == "cancel"):
                 cancel = 1
+            else:
+                responseMessage = {"response_type": "in_channel", "text": "Sorry I don't recognize that action. To start a game, please type /ttt @user"}
+                return jsonify(responseMessage)
+
 
         # Establish connection to database
         connection = sqlite3.connect("db/database.db")
@@ -83,12 +90,18 @@ def index():
                 return jsonify(returnMessage)
 
             else:
+                try:
+                    isPlayer1 = player1 == cursor.execute("select player1 from game where" +
+                                                         " channel=?", t).fetchone()[0]
+                except:
+                    responseMessage = {"response_type": "in_channel", "text": "Sorry I don't recognize that action. To start a game, please type /ttt @user"}
+                    return jsonify(responseMessage)
 
-                if(player1 == cursor.execute("select player1 from game where" +
-                                             " channel=?", t).fetchone()[0] or
-                    player1 == cursor.execute("select player2 " +
+                isPlayer2 = cursor.execute("select player2 " +
                                               "from game where channel=?",
-                                              t).fetchone()[0]):
+                                              t).fetchone()[0]
+
+                if(isPlayer1 or isPlayer2):
                     updateGameTable(cursor, t, move, player1)
                     connection.commit()
                     winner = gameOver(cursor, t)
@@ -227,7 +240,7 @@ def gameOver(cursor, data):
 
     if(0 not in boardSlots):
             return "tie"
-    
+
     return ""
 
 
