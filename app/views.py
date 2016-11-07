@@ -81,7 +81,7 @@ def index():
                                               "from game where channel=?",
                                               t).fetchone()[0]):
                     updateGameTable(cursor, t, move, player1)
-                    
+                    connection.commit()
                     winner = gameOver(cursor, t)
                     if(winner != ""):
                         cancelGame(cursor, t)
@@ -89,24 +89,15 @@ def index():
                         returnMessage = {"response_type": "in_channel", "text": winner + " Won!"}
                         return jsonify(returnMessage)
 
-                    displayBoard(cursor, t)
+                    returnMessage = {"response_type": "in_channel", "text": "The board is currently:\n" + displayBoard(cursor, t)}
                     # cancelGame(cursor, t)
-                    
+                    return jsonify(returnMessage)
+                    # cancelGame(cursor, t)
+
                 else:
                     returnMessage = {"response_type": "in_channel", "text": "Sorry, you're not in this game:("}
                     return jsonify(returnMessage)
 
-
-                    connection.commit()
-
-        currentGame = cursor.execute("select * from game where channel=?", t)
-
-        connection.commit()
-        # if it is, then check the params to see which user made a move
-        # Update the table
-        # return table
-        data["response-type"] = "in_channel"
-        return jsonify(currentGame.fetchall())
     elif request.method == "GET":
         return "Welcome to the webpage"
     else:
@@ -141,32 +132,41 @@ def updateGameTable(cursor, data, move, player):
         tableValue = 2
 
     if(move == 1):
-        cursor.execute("UPDATE game SET topLeft=? WHERE channel=? AND " +
-                       "topLeft=0", (tableValue, data[0]))
+        cursor.execute("UPDATE game SET topLeft=?, inSession=?" +
+                       " WHERE channel=? AND topLeft=0 AND inSession!=?",
+                       (tableValue, tableValue, data[0], tableValue))
     elif(move == 2):
-        cursor.execute("UPDATE game SET topMiddle=? WHERE channel=? AND " +
-                       "topMiddle=0", (tableValue, data[0]))
+        cursor.execute("UPDATE game SET topMiddle=?, inSession=?" +
+                       " WHERE channel=? AND topMiddle=0 AND inSession!=?",
+                       [tableValue, tableValue, data[0], tableValue])
     elif (move == 3):
-        cursor.execute("UPDATE game SET topRight=? WHERE channel=? AND " +
-                       "topRight=0", (tableValue, data[0]))
+        cursor.execute("UPDATE game SET topRight=?, inSession=?" +
+                       " WHERE channel=? AND topRight=0 AND inSession!=?",
+                       [tableValue, tableValue, data[0], tableValue])
     elif(move == 4):
-        cursor.execute("UPDATE game SET middleLeft=? WHERE channel=? AND" +
-                       " middleLeft=0", (tableValue, data[0]))
+        cursor.execute("UPDATE game SET middleLeft=?, inSession=?" +
+                       " WHERE channel=? AND middleLeft=0 AND inSession!=?",
+                       [tableValue, tableValue, data[0], tableValue])
     elif(move == 5):
-        cursor.execute("UPDATE game SET center=? WHERE channel=? AND center=0",
-                       (tableValue, data[0]))
+        cursor.execute("UPDATE game SET center=?, inSession=?" +
+                       " WHERE channel=? AND center=0 AND inSession!=?",
+                       [tableValue, tableValue, data[0], tableValue])
     elif(move == 6):
-        cursor.execute("UPDATE game SET middleRight=? WHERE channel=? AND" +
-                       " middleRight=0", (tableValue, data[0]))
+        cursor.execute("UPDATE game SET middleRight=?, inSession=?" +
+                       " WHERE channel=? AND middleRight=0 AND inSession!=?",
+                       [tableValue, tableValue, data[0], tableValue])
     elif(move == 7):
-        cursor.execute("UPDATE game SET bottomLeft=? WHERE channel=? AND" +
-                       " bottomLeft=0", (tableValue, data[0]))
+        cursor.execute("UPDATE game SET bottomLeft=?, inSession=?" +
+                       " WHERE channel=? AND bottomLeft=0 AND inSession!=?",
+                       [tableValue, tableValue, data[0], tableValue])
     elif(move == 8):
-        cursor.execute("UPDATE game SET bottomMiddle=? WHERE channel=? AND" +
-                       " bottomMiddle=0", (tableValue, data[0]))
+        cursor.execute("UPDATE game SET bottomMiddle=?, inSession=?" +
+                       " WHERE channel=? AND bottomMiddle=0 AND inSession!=?",
+                       [tableValue, tableValue, data[0], tableValue])
     elif(move == 9):
-        cursor.execute("UPDATE game SET bottomRight=? WHERE channel=? AND" +
-                       " bottomRight=0", (tableValue, data[0]))
+        cursor.execute("UPDATE game SET bottomRight=?, inSession=?" +
+                       " WHERE channel=? AND bottomRight=0 AND inSession!=?",
+                       [tableValue, tableValue, data[0], tableValue])
 
 
 def cancelGame(cursor, data):
@@ -177,15 +177,15 @@ def displayBoard(cursor, data):
 
     board = ""
 
-    choices = ["| |", "|X|", "|O|"]
+    choices = ["*|*       *|*", "*|*:heavy_multiplication_x:*|*", "*|*:radio_button:*|*"]
 
     for i in range(len(boardSlots)):
         if(i % 3 == 2):
             board += choices[boardSlots[i]] + "\n"
         else:
-            board += choices[boardSlots[i]]
+            board += choices[boardSlots[i]] + " "
 
-    print(board)
+    return board
 
 
 def gameOver(cursor, data):
