@@ -13,6 +13,7 @@ def index():
         player1 = data["user_name"]
         player2 = ""
         move = 0
+        cancel = 0
 
         # Interpret the syntax
 
@@ -29,6 +30,8 @@ def index():
             elif(len(data["text"]) == 1):
                 if(data["text"].isdigit()):
                     move = int(data["text"])
+            elif(data["text"] == "cancel"):
+                cancel = 1
 
         # Establish connection to database
         connection = sqlite3.connect("db/database.db")
@@ -50,6 +53,12 @@ def index():
                            " bottomMiddle integer(4), bottomRight integer(4));")
 
         # Get current game
+        if(cancel):
+            cancelGame(cursor, t)
+            connection.commit()
+            returnMessage = {"response_type": "in_channel", "text":"Game has been cancelled!" }
+            return jsonify(returnMessage)
+
         currentGame = cursor.execute("select * from game where channel=?", t)
 
         if(len(currentGame.fetchall()) == 0 and player2 != ""):
@@ -86,7 +95,10 @@ def index():
                     if(winner != ""):
                         cancelGame(cursor, t)
                         connection.commit()
-                        returnMessage = {"response_type": "in_channel", "text": winner + " Won!"}
+                        if(winner == "tie"):
+                            returnMessage = {"response_type": "in_channel", "text": "It's a tie!"}
+                        else:
+                            returnMessage = {"response_type": "in_channel", "text": winner + " won!"}
                         return jsonify(returnMessage)
 
                     returnMessage = {"response_type": "in_channel", "text": "The board is currently:\n" + displayBoard(cursor, t)}
@@ -213,6 +225,9 @@ def gameOver(cursor, data):
                 winner = cursor.execute("SELECT player2 FROM game WHERE channel=?", data).fetchone()[0]
                 return winner
 
+    if(0 not in boardSlots):
+            return "tie"
+    
     return ""
 
 
