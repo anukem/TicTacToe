@@ -117,9 +117,9 @@ def index():
                                            "game where channel=?",
                                            t).fetchone()[0]
                 except:
-                    responseMessage = {'''response_type": "in_channel", "text":
-                                       Sorry I don't recognize that action.
-                                    To start a game, please type /ttt @user'''}
+                    responseMessage = {"response_type": "in_channel", "text":
+                                       '''Sorry I don't recognize that action. 
+                                       To start a game, please type /ttt @user'''}
                     return jsonify(responseMessage)
 
                 isPlayer2 = cursor.execute("select player2 " +
