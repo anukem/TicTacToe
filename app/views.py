@@ -229,8 +229,7 @@ def cancelGame(cursor, data):
 
 
 def displayBoard(cursor, data):
-    boardSlots = cursor.execute("SELECT * FROM game" +
-                                " WHERE channel=?", data).fetchone()[4:]
+    boardSlots = cursor.execute("SELECT * FROM game WHERE channel=?", data).fetchone()[4:]
 
     board = ""
 
