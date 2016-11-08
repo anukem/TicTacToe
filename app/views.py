@@ -80,7 +80,7 @@ def index():
             return jsonify(returnMessage)
 
         if(display):
-            board = displayBoard(cursor, data)
+            board = displayBoard(cursor, t)
             response = {"response_type": "ephemeral"}
             response["text"] = '''The board is currently: \n''' + board
             return jsonify(response)
