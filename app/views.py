@@ -105,8 +105,7 @@ def index():
 
             board = displayBoard(cursor, t)
             response = {"response_type": "ephemeral"}
-            response["text"] = "The board is currently: \n" + board + "\nIt's "
-            + player + "'s turn!\n"
+            response["text"] = "The board is currently: \n" + board + "\nIt's " + player + "'s turn!\n"
             return jsonify(response)
 
         currentGame = cursor.execute("select * from game where channel=?", t)
