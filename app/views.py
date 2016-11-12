@@ -10,21 +10,32 @@ from flask import jsonify
 def index():
     if request.method == "POST":
         # Check if game is in session
+        # Make sure all preset values are accounted for
         data = request.get_data()
         data = dict(x.split("=") for x in data.split("&"))
         player1 = data["user_name"]
         player2 = ""
+        # Decides if the next move is valie
         move = 0
+        # Only set if a user cancels
         cancel = 0
+        # Only set if someone wants to see the game without making a move
         display = 0
 
         # Interpret the syntax
 
-        if(data["text"] == ""):
+        # Set the help text
+        if(data["text"] == "" or data["text"] == "help"):
             # Intro text
             response = {"response_type": "ephemeral"}
             response["text"] = '''Welcome to TicTacToe!\nIn order to start a game,
-                  please challenge someone in the channel.\nEx. /ttt @john'''
+                  please challenge someone in the channel. /ttt @john
+                  \n /ttt # makes a move at the slot defined by the numbers
+                  1 through 9, but only if you're in the game.\n
+                  /ttt display \n displays the game board only to the user that
+                  requested it as well as the current user whose turn it is.\n
+                  /ttt cancel \n cancels the game. Use this if you accidentally
+                   challenge yourself.'''
             return jsonify(response)
 
         elif(len(data["text"].split(" ")) == 1):
@@ -36,13 +47,15 @@ def index():
                     move = int(data["text"])
                 else:
                     responseMessage = {"response_type": "in_channel",
-                                       "text": "Sorry I don't recognize that" +
+                                       "text": "Sorry I do recognize that" +
                                        " action. To start a game, please" +
                                        " type /ttt @user"}
                     return jsonify(responseMessage)
             elif(data["text"] == "cancel"):
+                # Set the cancel mark and cancel the game
                 cancel = 1
             elif(data["text"] == "display"):
+                # Display the board
                 response = {"response_type": "ephemeral"}
                 display = 1
             else:
@@ -60,9 +73,11 @@ def index():
         t = (data["channel_name"],)
 
         try:
+            # Select the game if it exists and if it doesn't create it
             table = cursor.execute("select * from game where channel=?", t)
 
         except:
+
             cursor.execute('''create table game (channel varchar(256),
                             inSession integer(4), player1 varchar(256), player2
                             varchar(256), topLeft integer(4),
@@ -71,7 +86,7 @@ def index():
                             middleRight integer(4), bottomLeft integer(4),
                           bottomMiddle integer(4), bottomRight integer(4));''')
 
-        # Get current game
+        # Check to see if the game should be cancelled or displayed
         if(cancel):
             cancelGame(cursor, t)
             connection.commit()
@@ -80,16 +95,25 @@ def index():
             return jsonify(returnMessage)
 
         if(display):
+            # Figure out whose turn it is
+            player = ""
+            playerNum = cursor.execute("SELECT * FROM game WHERE channel=?",
+                                       t).fetchone()
+            if(playerNum[1] == 1):
+                player = playerNum[3]
+            else:
+                player = playerNum[2]
+
             board = displayBoard(cursor, t)
             response = {"response_type": "ephemeral"}
-            response["text"] = '''The board is currently: \n''' + board
+            response["text"] = "The board is currently: \n" + board + "\nIt's "
+            + player + "'s turn!\n"
             return jsonify(response)
 
         currentGame = cursor.execute("select * from game where channel=?", t)
 
         if(len(currentGame.fetchall()) == 0 and player2 != ""):
             # No game has been made
-            print("making a game")
             currentGame = cursor.execute("INSERT INTO game VALUES(?, ?, ?, ?" +
                                          ", ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                                          [data["channel_name"],
@@ -111,46 +135,50 @@ def index():
                 return jsonify(returnMessage)
 
             else:
+                # Check to see if board is in play
                 try:
-                    isPlayer1 = player1 == cursor.execute(
-                                           "select player1 from" +
-                                           "game where channel=?",
-                                           t).fetchone()[0]
-                except:
-                    responseMessage = {"response_type": "in_channel", "text":
-                                       '''Sorry I don't recognize that action. 
-                                       To start a game, please type /ttt @user'''}
-                    return jsonify(responseMessage)
+                    currentBoard = displayBoard(cursor, t)
+                except TypeError:
+                    returnMessage = {"response_type": "ephemeral",
+                                     "text": "*No game in session*"}
+                    return jsonify(returnMessage)
 
-                isPlayer2 = cursor.execute("select player2 " +
-                                           "from game where channel=?",
-                                           t).fetchone()[0]
-
-                if(isPlayer1 or isPlayer2):
-                    updateGameTable(cursor, t, move, player1)
+                # Update the table and determine a winner if there is one
+                updateGameTable(cursor, t, move, player1)
+                connection.commit()
+                winner = gameOver(cursor, t)
+                updatedBoard = displayBoard(cursor, t)
+                if(winner != ""):
+                    cancelGame(cursor, t)
                     connection.commit()
-                    winner = gameOver(cursor, t)
-                    if(winner != ""):
-                        cancelGame(cursor, t)
-                        connection.commit()
-                        if(winner == "tie"):
-                            returnMessage = {"response_type": "in_channel",
-                                             "text": "It's a tie!"}
-                        else:
-                            returnMessage = {"response_type": "in_channel",
-                                             "text": winner + " won!"}
-                        return jsonify(returnMessage)
+                    if(winner == "tie"):
+                        returnMessage = {"response_type": "in_channel",
+                                         "text": "It's a tie!"}
+                    else:
+                        returnMessage = {"response_type": "in_channel",
+                                         "text": winner + " won!\n" +
+                                         updatedBoard}
+                    return jsonify(returnMessage)
+
+                if(currentBoard != updatedBoard):
+                    # Figure out whose turn it is
+                    player = ""
+                    playerNum = cursor.execute("SELECT * FROM game WHERE channel=?", t).fetchone()
+                    if(playerNum[1] == 1):
+                        player = playerNum[3]
+                    else:
+                        player = playerNum[2]
 
                     returnMessage = {"response_type": "in_channel", "text":
                                      "The board is currently:\n" +
-                                     displayBoard(cursor, t)}
-                    # cancelGame(cursor, t)
+                                     displayBoard(cursor, t) + "\nIt's " +
+                                     player + "'s turn!\n "}
                     return jsonify(returnMessage)
-                    # cancelGame(cursor, t)
-
                 else:
-                    returnMessage = {"response_type": "in_channel", "text":
-                                     "Sorry, you're not in this game:("}
+                    returnMessage = {"response_type": "ephemeral", "text":
+                                     '''*Sorry, its either not your turn, or 
+                                     you're not in the game or you made an
+                                     illegal move*'''}
                     return jsonify(returnMessage)
 
     elif request.method == "GET":
@@ -229,6 +257,7 @@ def cancelGame(cursor, data):
 
 
 def displayBoard(cursor, data):
+
     boardSlots = cursor.execute("SELECT * FROM game WHERE channel=?", data).fetchone()[4:]
 
     board = ""
@@ -265,11 +294,11 @@ def gameOver(cursor, data):
 
             if(boardSlots[position1] == 1):
                 winner = cursor.execute("SELECT player1 FROM game" +
-                                        "WHERE channel=?", data).fetchone()[0]
+                                        " WHERE channel=?", data).fetchone()[0]
                 return winner
             else:
                 winner = cursor.execute("SELECT player2 FROM game" +
-                                        "WHERE channel=?", data).fetchone()[0]
+                                        " WHERE channel=?", data).fetchone()[0]
                 return winner
 
     if(0 not in boardSlots):
