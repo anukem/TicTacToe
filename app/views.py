@@ -97,8 +97,7 @@ def index():
         if(display):
             # Figure out whose turn it is
             player = ""
-            playerNum = cursor.execute("SELECT * FROM game WHERE channel=?",
-                                       t).fetchone()
+            playerNum = cursor.execute("SELECT * FROM game WHERE channel=?", t).fetchone()
             if(playerNum[1] == 1):
                 player = playerNum[3]
             else:
